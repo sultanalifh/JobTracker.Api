@@ -10,4 +10,14 @@ public class AppDbContext : DbContext
     }
 
     public DbSet<JobApplication> JobApplications { get; set; }
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+
+        modelBuilder.Entity<User>()
+            .HasMany(user => user.JobApplications)
+            .WithOne(application => application.User)
+            .HasForeignKey(application => application.UserId);
+    }
 }
