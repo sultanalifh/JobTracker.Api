@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using JobTracker.Api.Exceptions;
 using JobTracker.Api.Models;
+using JobTracker.Api.Security.Models;
 using JobTracker.Api.Utilities;
 
 namespace JobTracker.Api.Security;
@@ -21,13 +22,13 @@ public class JwtService : IJwtService
         int expirationMinutes = int.Parse(_configuration["Jwt:ExpirationMinutes"]!);
         long exp = DateTimeOffset.UtcNow.AddMinutes(expirationMinutes).ToUnixTimeSeconds();
 
-        var header = new
+        JwtHeader header = new JwtHeader()
         {
-            alg = "HS256",
-            typ = "JWT"
+            Alg = "HS256",
+            Typ = "JWT"
         };
 
-        var payload = new
+        JwtPayload payload = new JwtPayload()
         {
             Sub = user.Id,
             Username = user.Username,
@@ -61,6 +62,15 @@ public class JwtService : IJwtService
         string signature = parts[2];
 
         string content = $"{header}.{payload}";
+
+        JwtPayload payloadData = JsonSerializer.Deserialize<JwtPayload>(Encoding.UTF8.GetString(Converter.Base64UrlDecode(payload)))!;
+
+        long unixTimeNow = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+
+        if (unixTimeNow >= payloadData.Exp)
+        {
+            throw new ExpiredTokenException();
+        }
 
         string expectedSignature = Converter.Base64UrlEncode(HMACSHA256.HashData(Encoding.UTF8.GetBytes(secret), Encoding.UTF8.GetBytes(content)));
 
