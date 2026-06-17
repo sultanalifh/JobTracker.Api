@@ -20,7 +20,12 @@ public class JobApplicationRepositories : IJobApplicationRepositories
 
         return applications;
     }
+    public async Task<List<JobApplication>> GetAllByUserIdAsync(long userId)
+    {
+        List<JobApplication> applications = await _context.JobApplications.Where(application => application.UserId == userId).ToListAsync();
 
+        return applications;
+    }
     public async Task<JobApplication?> GetByIdAsync(long id)
     {
         JobApplication? application = await _context.JobApplications.FirstOrDefaultAsync(application => application.Id == id);

@@ -18,7 +18,7 @@ public class StatisticsService : IStatisticsService
         _cache = cache;
     }
 
-    public async Task<StatisticsResponse> GetStatisticsAsync()
+    public async Task<StatisticsResponse> GetStatisticsAsync(long userId)
     {
         string? cached = await _cache.GetStringAsync(_key);
 
@@ -29,12 +29,12 @@ public class StatisticsService : IStatisticsService
 
         var statistics = new StatisticsResponse()
         {
-            TotalApplications = await _repositories.CountAsync(application => true),
-            TotalApplied = await _repositories.CountAsync(application => application.Status == ApplicationStatus.Applied),
-            TotalViewed = await _repositories.CountAsync(application => application.Status == ApplicationStatus.Viewed),
-            TotalInterviewed = await _repositories.CountAsync(application => application.Status == ApplicationStatus.Interview),
-            TotalOffered = await _repositories.CountAsync(application => application.Status == ApplicationStatus.Offer),
-            TotalRejected = await _repositories.CountAsync(application => application.Status == ApplicationStatus.Rejected)
+            TotalApplications = await _repositories.CountAsync(application => application.UserId == userId),
+            TotalApplied = await _repositories.CountAsync(application => application.UserId == userId && application.Status == ApplicationStatus.Applied),
+            TotalViewed = await _repositories.CountAsync(application => application.UserId == userId && application.Status == ApplicationStatus.Viewed),
+            TotalInterviewed = await _repositories.CountAsync(application => application.UserId == userId && application.Status == ApplicationStatus.Interview),
+            TotalOffered = await _repositories.CountAsync(application => application.UserId == userId && application.Status == ApplicationStatus.Offer),
+            TotalRejected = await _repositories.CountAsync(application => application.UserId == userId && application.Status == ApplicationStatus.Rejected)
         };
 
         cached = JsonSerializer.Serialize(statistics);

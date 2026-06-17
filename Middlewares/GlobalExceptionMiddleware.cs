@@ -32,16 +32,28 @@ public class GlobalExceptionMiddleware
         int statusCode;
         string error;
 
+        Console.WriteLine(exception.StackTrace);
+
         switch (exception)
         {
+            case ValidationException:
+                statusCode = StatusCodes.Status400BadRequest;
+                error = "BadRequest";
+                break;
+
+            case InvalidCredentialsException or UnauthorizedAccessException:
+                statusCode = StatusCodes.Status401Unauthorized;
+                error = "Unauthorized";
+                break;
+
             case JobApplicationNotFoundException:
                 statusCode = StatusCodes.Status404NotFound;
                 error = "NotFound";
                 break;
             
-            case ValidationException:
-                statusCode = StatusCodes.Status400BadRequest;
-                error = "BadRequest";
+            case UsernameAlreadyExistsException:
+                statusCode = StatusCodes.Status409Conflict;
+                error = "Conflict";
                 break;
             
             default:

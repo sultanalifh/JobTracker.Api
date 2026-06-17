@@ -5,6 +5,7 @@ using JobTracker.Api.Exceptions;
 using JobTracker.Api.Models;
 using JobTracker.Api.Security.Models;
 using JobTracker.Api.Utilities;
+using Microsoft.OpenApi;
 
 namespace JobTracker.Api.Security;
 
@@ -16,11 +17,11 @@ public class JwtService : IJwtService
     {
         _configuration = configuration;
     }
-    public string GenerateToken(User user)
+    public JwtTokenResult GenerateToken(User user)
     {
         string secret = _configuration["Jwt:Secret"]!;
         int expirationMinutes = int.Parse(_configuration["Jwt:ExpirationMinutes"]!);
-        long exp = DateTimeOffset.UtcNow.AddMinutes(expirationMinutes).ToUnixTimeSeconds();
+        DateTimeOffset exp = DateTimeOffset.UtcNow.AddMinutes(expirationMinutes);
 
         JwtHeader header = new JwtHeader()
         {
@@ -32,8 +33,8 @@ public class JwtService : IJwtService
         {
             Sub = user.Id,
             Username = user.Username,
-            Role = user.Role,
-            Exp = exp
+            Role = user.Role.GetDisplayName(),
+            Exp = exp.ToUnixTimeSeconds()
         };
 
         string header64Url = Converter.Base64UrlEncode(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(header)));
@@ -43,7 +44,13 @@ public class JwtService : IJwtService
 
         string signature = Converter.Base64UrlEncode(HMACSHA256.HashData(Encoding.UTF8.GetBytes(secret), Encoding.UTF8.GetBytes(content)));
 
-        return $"{header64Url}.{payload64Url}.{signature}";
+        string token = $"{header64Url}.{payload64Url}.{signature}";
+
+        return new JwtTokenResult()
+        {
+            Token = token,
+            ExpiresAt = exp
+        };
     }
 
     public bool ValidateToken(string token)

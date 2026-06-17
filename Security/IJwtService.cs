@@ -1,10 +1,11 @@
 using JobTracker.Api.Models;
+using JobTracker.Api.Security.Models;
 
 namespace JobTracker.Api.Security;
 
 public interface IJwtService
 {
-    string GenerateToken(User user);
+    JwtTokenResult GenerateToken(User user);
 
     bool ValidateToken(string token);
 }
