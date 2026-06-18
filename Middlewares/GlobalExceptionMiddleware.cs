@@ -32,8 +32,6 @@ public class GlobalExceptionMiddleware
         int statusCode;
         string error;
 
-        Console.WriteLine(exception.StackTrace);
-
         switch (exception)
         {
             case ValidationException:

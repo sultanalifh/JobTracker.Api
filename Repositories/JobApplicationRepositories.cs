@@ -1,17 +1,15 @@
 using System.Linq.Expressions;
 using JobTracker.Api.Data;
-using JobTracker.Api.Exceptions;
 using JobTracker.Api.Models;
 using JobTracker.Api.Utilities;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Query.SqlExpressions;
-using Npgsql.EntityFrameworkCore.PostgreSQL.Query.Expressions.Internal;
 
 namespace JobTracker.Api.Repositories;
 
 public class JobApplicationRepositories : IJobApplicationRepositories
 {
     private readonly AppDbContext _context;
+
 
     public JobApplicationRepositories(AppDbContext context)
     {
@@ -25,11 +23,19 @@ public class JobApplicationRepositories : IJobApplicationRepositories
     }
     public async Task<List<JobApplication>> GetAllAsync(int page, int pageSize, ApplicationStatus? status, string? keyword)
     {
+        if(keyword != null)
+        {
+            keyword = $"%{keyword}%";
+        }
+
         List<JobApplication> applications =
             await _context.JobApplications
-            .Where(application =>
-                application.Contains(keyword) &&
-                application.StatusIsOrDefault(status))
+            .Where(application => 
+                (keyword == null ||
+                EF.Functions.ILike(application.Company, keyword) ||
+                EF.Functions.ILike(application.Position, keyword) ||
+                EF.Functions.ILike(application.SiteLocation, keyword)) && 
+                (application.Status == status || status == null))
             .OrderBy(application => application.CreatedAt)
             .Skip(pageSize * (page - 1))
             .Take(pageSize)
@@ -45,21 +51,24 @@ public class JobApplicationRepositories : IJobApplicationRepositories
     }
     public async Task<List<JobApplication>> GetAllByUserIdAsync(long userId, int page, int pageSize, ApplicationStatus? status, string? keyword)
     {
-        if (keyword != null)
+        if(keyword != null)
         {
-            keyword = keyword.ToLower();
+            keyword = $"%{keyword}%";
         }
 
         List<JobApplication> applications = await _context.JobApplications
             .Where(application => 
                 application.UserId == userId &&
-                application.Contains(keyword) &&
-                application.StatusIsOrDefault(status))
+                (keyword == null ||
+                EF.Functions.ILike(application.Company, keyword) ||
+                EF.Functions.ILike(application.Position, keyword) ||
+                EF.Functions.ILike(application.SiteLocation, keyword)) && 
+                (application.Status == status || status == null))
             .OrderBy(application => application.CreatedAt)
             .Skip(pageSize * (page - 1))
             .Take(pageSize)
             .ToListAsync();
-        
+
         return applications;
     }
     public async Task<JobApplication?> GetByIdAsync(long id)
@@ -79,12 +88,16 @@ public class JobApplicationRepositories : IJobApplicationRepositories
     {
         if(keyword != null)
         {
-            keyword = keyword.ToLower();
+            keyword = $"%{keyword}%";
         }
+        
         Expression<Func<JobApplication, bool>> expression = 
             application => 
-                application.Contains(keyword) && 
-                application.StatusIsOrDefault(status);
+                (keyword == null ||
+                EF.Functions.ILike(application.Company, keyword) ||
+                EF.Functions.ILike(application.Position, keyword) ||
+                EF.Functions.ILike(application.SiteLocation, keyword)) && 
+                (application.Status == status || status == null);
 
         return await CountAsync(expression);
     }
@@ -92,13 +105,17 @@ public class JobApplicationRepositories : IJobApplicationRepositories
     {
         if(keyword != null)
         {
-            keyword = keyword.ToLower();
+            keyword = $"%{keyword}%";
         }
+
         Expression<Func<JobApplication, bool>> expression = 
             application => 
                 application.UserId == userId &&
-                application.Contains(keyword) && 
-                application.StatusIsOrDefault(status);
+                (keyword == null ||
+                EF.Functions.ILike(application.Company, keyword) ||
+                EF.Functions.ILike(application.Position, keyword) ||
+                EF.Functions.ILike(application.SiteLocation, keyword)) && 
+                (application.Status == status || status == null);
 
         return await CountAsync(expression);
     }

@@ -41,7 +41,7 @@ public class StatisticsService : IStatisticsService
 
         cached = JsonSerializer.Serialize(statistics);
 
-        await _cache.SetStringAsync(_key, cached, new DistributedCacheEntryOptions()
+        await _cache.SetStringAsync(key, cached, new DistributedCacheEntryOptions()
         {
             AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5)
         });
@@ -49,5 +49,9 @@ public class StatisticsService : IStatisticsService
         return statistics;
     }
 
-    public async Task InvalidateAsync(long userId) => await _cache.RemoveAsync($"{_key}:{userId}");
+    public async Task InvalidateAsync(long userId) 
+    {
+        await _cache.RemoveAsync($"{_key}:-1");
+        await _cache.RemoveAsync($"{_key}:{userId}");
+    }
 }

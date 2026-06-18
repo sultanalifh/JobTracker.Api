@@ -2,9 +2,7 @@ using System.Text;
 using JobTracker.Api.Data;
 using JobTracker.Api.Endpoints;
 using JobTracker.Api.Middlewares;
-using JobTracker.Api.Repositories;
-using JobTracker.Api.Security;
-using JobTracker.Api.Services;
+using JobTracker.Api.Utilities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
@@ -57,17 +55,21 @@ builder.Services.AddAuthorization((options) =>
 });
 
 // Repositories
-builder.Services.AddScoped<IJobApplicationRepositories, JobApplicationRepositories>();
-builder.Services.AddScoped<IUserRepositories, UserRepositories>();
+builder.Services.AddJobApplicationRepositories();
+builder.Services.AddUserRepositories();
 
 // Service
-builder.Services.AddScoped<IUserService, UserService>();
-builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
-builder.Services.AddScoped<IStatisticsService, StatisticsService>();
-builder.Services.AddScoped<IJobApplicationService, JobApplicationService>();
-builder.Services.AddScoped<IJwtService, JwtService>();
-builder.Services.AddScoped<IPasswordService, PasswordService>();
-builder.Services.AddScoped<IAuthService, AuthService>();
+
+// Minimum Dependency
+builder.Services.AddJwtService();
+builder.Services.AddPasswordService();
+builder.Services.AddUserService();
+builder.Services.AddCurrentUserService();
+builder.Services.AddStatisticsService();
+
+builder.Services.AddAuthService();
+builder.Services.AddUserJobApplicationService();
+builder.Services.AddAdminJobApplicationService();
 
 var app = builder.Build();
 
@@ -89,11 +91,11 @@ app.MapAuthEndpoints();
 
 // User
 
-app.UseAuthentication();
+app.UseAuthentication().UseAuthorization();
 
-app.UseAuthorization();
-
-app.MapJobApplicationEndpoints();
+app.MapGroup("/user")
+    .RequireAuthorization()
+    .MapUserEndpoints();
 
 // Admin
 

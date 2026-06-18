@@ -17,8 +17,8 @@ public class AdminJobApplicationService : UserJobApplicationService, IAdminJobAp
     }
     public async Task<JobApplicationPaginationResponse> GetApplicationsPage(GetApplicationRequest request)
     {
-        int page = request.Page ?? 1;
-        int pageSize = request.PageSize ?? 10;
+        int page = Math.Max(1, request.Page ?? 1);
+        int pageSize = Math.Clamp(request.PageSize ?? 10, 1, 100);
         ApplicationStatus? status = null;
         string? keyword = request.Keyword;
 
@@ -50,7 +50,7 @@ public class AdminJobApplicationService : UserJobApplicationService, IAdminJobAp
             }).ToList();
 
         int totalPage = (int)Math.Ceiling(totalApplications / (pageSize + 0.0));
-        int totalItems = applications.Count;
+        int totalItems = totalApplications;
 
         return new JobApplicationPaginationResponse()
         {
@@ -64,8 +64,8 @@ public class AdminJobApplicationService : UserJobApplicationService, IAdminJobAp
 
     public async Task<JobApplicationPaginationResponse> GetApplicationsPage(long id, GetApplicationRequest request)
     {
-        int page = request.Page ?? 1;
-        int pageSize = request.PageSize ?? 10;
+        int page = Math.Max(1, request.Page ?? 1);
+        int pageSize = Math.Clamp(request.PageSize ?? 10, 1, 100);
         ApplicationStatus? status = null;
         string? keyword = request.Keyword;
 
@@ -81,8 +81,8 @@ public class AdminJobApplicationService : UserJobApplicationService, IAdminJobAp
             }
         }
 
-        int totalApplications = await _repositories.CountAsync(_user.UserId, status, keyword);
-        List<JobApplication> applications = await _repositories.GetAllByUserIdAsync(_user.UserId, page, pageSize, status, keyword);
+        int totalApplications = await _repositories.CountAsync(id, status, keyword);
+        List<JobApplication> applications = await _repositories.GetAllByUserIdAsync(id, page, pageSize, status, keyword);
 
         List<JobApplicationResponse> applicationsResponse = applications.Select(
             application => new JobApplicationResponse()
@@ -97,7 +97,7 @@ public class AdminJobApplicationService : UserJobApplicationService, IAdminJobAp
             }).ToList();
 
         int totalPage = (int)Math.Ceiling(totalApplications / (pageSize + 0.0));
-        int totalItems = applications.Count;
+        int totalItems = totalApplications;
 
         return new JobApplicationPaginationResponse()
         {
@@ -147,99 +147,5 @@ public class AdminJobApplicationService : UserJobApplicationService, IAdminJobAp
         return applicationsResponse;
     }
 
-    public async Task<JobApplicationResponse> UpdateApplication(long id, UpdateJobApplicationRequest request)
-    {
-        string company = request.Company;
-        string position = request.Position;
-        string siteLocation = request.SiteLocation;
-        ApplicationStatus status;
-
-        if (
-            string.IsNullOrWhiteSpace(company) ||
-            string.IsNullOrWhiteSpace(position) ||
-            string.IsNullOrWhiteSpace(siteLocation))
-        {
-            throw new ValidationException("All field must be filled!");
-        }
-
-        if (!Enum.TryParse<ApplicationStatus>(request.Status, out status))
-        {
-            throw new ValidationException("Invalid status!");
-        }
-
-        JobApplication? application = await _repositories.GetByIdAsync(id);
-
-        if (application == null)
-        {
-            throw new JobApplicationNotFoundException(id);
-        }
-
-        application.Company = company;
-        application.Position = position;
-        application.SiteLocation = siteLocation;
-        application.Status = status;
-
-        await _repositories.SavesChangesAsync();
-        
-        await InvalidateMyApplicationsStatistics();
-
-        return new JobApplicationResponse()
-        {
-            Id = application.Id,
-            Company = application.Company,
-            Position = application.Position,
-            SiteLocation = application.SiteLocation,
-            Status = application.Status.GetDisplayName(),
-            CreatedAt = application.CreatedAt,
-            UpdatedAt = application.UpdatedAt
-        };
-    }
-    public async Task<JobApplicationStatusResponse> UpdateApplicationStatus(long id, UpdateJobApplicationStatusRequest request)
-    {
-        if(!Enum.TryParse<ApplicationStatus>(request.Status, out ApplicationStatus r))
-        {
-            throw new ValidationException("Invalid status!");
-        }
-
-        JobApplication? application = await _repositories.GetByIdAsync(id);
-
-        if (application == null)
-        {
-            throw new JobApplicationNotFoundException(id);
-        }
-        
-        application.Status = request.NewStatus;
-
-        await _repositories.SavesChangesAsync();
-
-        await InvalidateMyApplicationsStatistics();
-
-        return new JobApplicationStatusResponse()
-        {
-            Id = id,
-            Status = application.Status.GetDisplayName()
-        };
-    }
-    public async Task<bool> DeleteApplication(long id)
-    {
-        JobApplication? application = await _repositories.GetByIdAsync(id);
-
-        if (application == null)
-        {
-            throw new JobApplicationNotFoundException();
-        }
-
-        if (application.UserId != _user.UserId)
-        {
-            throw new UnauthorizedAccessException("Unauthorized Access!");
-        }
-
-        await _repositories.RemoveAsync(application);
-
-        await _repositories.SavesChangesAsync();
-
-        await InvalidateMyApplicationsStatistics();
-
-        return true;
-    }
+    public async Task<StatisticsResponse> GetStatistics() => await _statistics.GetStatisticsAsync(-1);
 }

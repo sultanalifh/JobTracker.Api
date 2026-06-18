@@ -22,8 +22,8 @@ public class UserJobApplicationService : IUserJobApplicationService
     }
     public async Task<JobApplicationPaginationResponse> GetMyApplicationsPage(GetApplicationRequest request)
     {
-        int page = request.Page ?? 1;
-        int pageSize = request.PageSize ?? 10;
+        int page = Math.Max(1, request.Page ?? 1);
+        int pageSize = Math.Clamp(request.PageSize ?? 10, 1, 100);
         ApplicationStatus? status = null;
         string? keyword = request.Keyword;
 
@@ -55,7 +55,7 @@ public class UserJobApplicationService : IUserJobApplicationService
             }).ToList();
 
         int totalPage = (int)Math.Ceiling(totalApplications / (pageSize + 0.0));
-        int totalItems = applications.Count;
+        int totalItems = totalApplications;
 
         return new JobApplicationPaginationResponse()
         {
@@ -95,7 +95,7 @@ public class UserJobApplicationService : IUserJobApplicationService
             throw new JobApplicationNotFoundException(id);
         }
 
-        if (application.UserId != _user.UserId)
+        if (_user.Role != UserRole.Admin && application.UserId != _user.UserId)
         {
             throw new UnauthorizedAccessException("Unauthorized Access!");
         }
@@ -182,7 +182,7 @@ public class UserJobApplicationService : IUserJobApplicationService
             throw new JobApplicationNotFoundException(id);
         }
 
-        if (application.UserId != _user.UserId)
+        if (_user.Role != UserRole.Admin && application.UserId != _user.UserId)
         {
             throw new UnauthorizedAccessException("Unauthorized Access!");
         }
@@ -191,6 +191,7 @@ public class UserJobApplicationService : IUserJobApplicationService
         application.Position = position;
         application.SiteLocation = siteLocation;
         application.Status = status;
+        application.UpdatedAt = DateTime.UtcNow;
 
         await _repositories.SavesChangesAsync();
         
@@ -222,12 +223,13 @@ public class UserJobApplicationService : IUserJobApplicationService
             throw new JobApplicationNotFoundException(id);
         }
 
-        if (application.UserId != _user.UserId)
+        if (_user.Role != UserRole.Admin && application.UserId != _user.UserId)
         {
             throw new UnauthorizedAccessException("Unauthorized access!");
         }
 
         application.Status = request.NewStatus;
+        application.UpdatedAt = DateTime.UtcNow;
 
         await _repositories.SavesChangesAsync();
 
@@ -249,7 +251,7 @@ public class UserJobApplicationService : IUserJobApplicationService
             throw new JobApplicationNotFoundException();
         }
 
-        if (application.UserId != _user.UserId)
+        if (_user.Role != UserRole.Admin && application.UserId != _user.UserId)
         {
             throw new UnauthorizedAccessException("Unauthorized Access!");
         }

@@ -9,7 +9,6 @@ public interface IAdminJobApplicationService : IUserJobApplicationService
     Task<JobApplicationPaginationResponse> GetApplicationsPage(long id, GetApplicationRequest request);
     Task<List<JobApplicationResponse>> GetApplications();
     Task<List<JobApplicationResponse>> GetApplications(long id);
-    Task<JobApplicationResponse> UpdateApplication(long id, UpdateJobApplicationRequest request);
-    Task<JobApplicationStatusResponse> UpdateApplicationStatus(long id, UpdateJobApplicationStatusRequest request);
-    Task<bool> DeleteApplication(long id);
+
+    Task<StatisticsResponse> GetStatistics();
 }
