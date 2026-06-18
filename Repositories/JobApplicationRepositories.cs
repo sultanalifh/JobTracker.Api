@@ -20,10 +20,54 @@ public class JobApplicationRepositories : IJobApplicationRepositories
 
         return applications;
     }
+    public async Task<List<JobApplication>> GetAllAsync(int page, int pageSize, ApplicationStatus? status, string? keyword)
+    {
+        if (keyword != null)
+        {
+            keyword = keyword.ToLower();
+        }
+
+        List<JobApplication> applications =
+            await _context.JobApplications
+            .Where(application =>
+                (keyword == null ||
+                application.Company.ToLower().Contains(keyword) ||
+                application.Position.ToLower().Contains(keyword) ||
+                application.SiteLocation.ToLower().Contains(keyword)) &&
+                (application.Status == status || status == null))
+            .OrderBy(application => application.CreatedAt)
+            .Skip(pageSize * (page - 1))
+            .Take(pageSize)
+            .ToListAsync();
+
+        return applications;
+    }
     public async Task<List<JobApplication>> GetAllByUserIdAsync(long userId)
     {
         List<JobApplication> applications = await _context.JobApplications.Where(application => application.UserId == userId).ToListAsync();
 
+        return applications;
+    }
+    public async Task<List<JobApplication>> GetAllByUserIdAsync(long userId, int page, int pageSize, ApplicationStatus? status, string? keyword)
+    {
+        if (keyword != null)
+        {
+            keyword = keyword.ToLower();
+        }
+
+        List<JobApplication> applications = await _context.JobApplications
+            .Where(application => 
+                application.UserId == userId &&
+                (keyword == null || 
+                application.Company.ToLower().Contains(keyword) ||
+                application.Position.ToLower().Contains(keyword) || 
+                application.SiteLocation.ToLower().Contains(keyword)) && 
+                (application.Status == status || status == null))
+            .OrderBy(application => application.CreatedAt)
+            .Skip(pageSize * (page - 1))
+            .Take(pageSize)
+            .ToListAsync();
+        
         return applications;
     }
     public async Task<JobApplication?> GetByIdAsync(long id)

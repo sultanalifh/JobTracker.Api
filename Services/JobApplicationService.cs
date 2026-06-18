@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Reflection;
 using JobTracker.Api.Dtos.Request;
 using JobTracker.Api.Dtos.Response;
 using JobTracker.Api.Exceptions;
@@ -47,6 +48,8 @@ public class JobApplicationService : IJobApplicationService
 
         await _repositories.SavesChangesAsync();
 
+        await InvalidateMyApplicationsStatistics();
+
         return new JobApplicationResponse()
         {
             Id = application.Id,
@@ -77,12 +80,30 @@ public class JobApplicationService : IJobApplicationService
 
         await _repositories.SavesChangesAsync();
 
+        await InvalidateMyApplicationsStatistics();
+
         return true;
     }
 
-    public async Task<List<JobApplicationResponse>> GetAllApplicationsAsync()
+    public async Task<List<JobApplicationResponse>> GetAllApplicationsAsync(GetApplicationRequest request)
     {
-        List<JobApplication> applications = await _repositories.GetAllAsync();
+        int page = request.Page ?? 1;
+        int pageSize = request.PageSize ?? 10;
+        ApplicationStatus? status = null;
+        string? keyword = request.Keyword;
+
+        if(request.Status != null)
+        {
+            if(Enum.TryParse<ApplicationStatus>(request.Status, out ApplicationStatus s))
+            {
+                status = s;
+            }
+            else
+            {
+                throw new ValidationException("Invalid status!");
+            }
+        }
+        List<JobApplication> applications = await _repositories.GetAllAsync(page, pageSize, status, keyword);
 
         List<JobApplicationResponse> applicationResponses = applications.Select(application => new JobApplicationResponse()
         {
@@ -91,8 +112,8 @@ public class JobApplicationService : IJobApplicationService
             Position = application.Position,
             SiteLocation = application.SiteLocation,
             Status = application.Status.GetDisplayName(),
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
+            CreatedAt = application.CreatedAt,
+            UpdatedAt = application.UpdatedAt
         }).ToList();
 
         return applicationResponses;
@@ -124,9 +145,26 @@ public class JobApplicationService : IJobApplicationService
         };
     }
 
-    public async Task<List<JobApplicationResponse>> GetMyApplications()
+    public async Task<List<JobApplicationResponse>> GetMyApplications(GetApplicationRequest request)
     {
-        List<JobApplication> applications = await _repositories.GetAllByUserIdAsync(_user.UserId);
+        int page = request.Page ?? 1;
+        int pageSize = request.PageSize ?? 10;
+        ApplicationStatus? status = null;
+        string? keyword = request.Keyword;
+
+        if(request.Status != null)
+        {
+            if(Enum.TryParse<ApplicationStatus>(request.Status, out ApplicationStatus s))
+            {
+                status = s;
+            }
+            else
+            {
+                throw new ValidationException("Invalid status!");
+            }
+        }
+
+        List<JobApplication> applications = await _repositories.GetAllByUserIdAsync(_user.UserId, page, pageSize, status, keyword);
         
         List<JobApplicationResponse> applicationsResponse = applications.Select(application => new JobApplicationResponse()
         {
@@ -135,8 +173,8 @@ public class JobApplicationService : IJobApplicationService
             Position = application.Position,
             SiteLocation = application.SiteLocation,
             Status = application.Status.GetDisplayName(),
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
+            CreatedAt = application.CreatedAt,
+            UpdatedAt = application.UpdatedAt
         }).ToList();
 
         return applicationsResponse;
@@ -167,7 +205,7 @@ public class JobApplicationService : IJobApplicationService
 
     public async Task<StatisticsResponse> GetStatisticsAsync() => await _statistics.GetStatisticsAsync(-1);
 
-    public async Task InvalidateMyApplicationsStatistics() => await _statistics.InvalidateAsync();
+    public async Task InvalidateMyApplicationsStatistics() => await _statistics.InvalidateAsync(_user.UserId);
 
     public async Task<JobApplicationStatusResponse> SetMyAppliacionStatus(long id, UpdateJobApplicationStatusRequest request)
     {
@@ -191,6 +229,8 @@ public class JobApplicationService : IJobApplicationService
         application.Status = request.NewStatus;
 
         await _repositories.SavesChangesAsync();
+
+        await InvalidateMyApplicationsStatistics();
 
         return new JobApplicationStatusResponse()
         {

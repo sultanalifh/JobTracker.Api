@@ -4,7 +4,7 @@ using JobTracker.Api.Security;
 
 namespace JobTracker.Api.Endpoints;
 
-public static class AuthEnpoints
+public static class AuthEndpoints
 {
     public static void MapAuthEndpoints(this WebApplication app)
     {

@@ -8,7 +8,7 @@ public static class JobApplicationEndpoints
 {
     public static void MapJobApplicationEndpoints(this WebApplication app)
     {
-        app.MapGet("/applications", async (IJobApplicationService jobApplicationService) => Results.Ok(await jobApplicationService.GetMyApplications())).RequireAuthorization();
+        app.MapGet("/applications", async ([AsParameters] GetApplicationRequest request, IJobApplicationService jobApplicationService) => Results.Ok(await jobApplicationService.GetMyApplications(request))).RequireAuthorization();
 
         app.MapGet("/applications/{id}", async (IJobApplicationService jobApplicationService, long id) =>
         {

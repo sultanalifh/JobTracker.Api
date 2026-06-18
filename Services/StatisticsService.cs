@@ -20,7 +20,9 @@ public class StatisticsService : IStatisticsService
 
     public async Task<StatisticsResponse> GetStatisticsAsync(long userId)
     {
-        string? cached = await _cache.GetStringAsync(_key);
+        string key = $"{_key}:{userId}";
+
+        string? cached = await _cache.GetStringAsync(key);
 
         if(cached != null)
         {
@@ -47,5 +49,5 @@ public class StatisticsService : IStatisticsService
         return statistics;
     }
 
-    public async Task InvalidateAsync() => await _cache.RemoveAsync(_key);
+    public async Task InvalidateAsync(long userId) => await _cache.RemoveAsync($"{_key}:{userId}");
 }

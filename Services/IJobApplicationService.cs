@@ -6,7 +6,7 @@ public interface IJobApplicationService
 {
     // User
 
-    Task<List<JobApplicationResponse>> GetMyApplications();
+    Task<List<JobApplicationResponse>> GetMyApplications(GetApplicationRequest request);
     Task<JobApplicationResponse?> GetMyApplication(long id);
     Task<JobApplicationResponse> CreateMyApplication(CreateJobApplicationRequest request);
     Task<bool> DeleteMyApplication(long id);
@@ -17,6 +17,6 @@ public interface IJobApplicationService
 
     // Admin
 
-    Task<List<JobApplicationResponse>> GetAllApplicationsAsync();
+    Task<List<JobApplicationResponse>> GetAllApplicationsAsync(GetApplicationRequest request);
     Task<StatisticsResponse> GetStatisticsAsync();
 }
