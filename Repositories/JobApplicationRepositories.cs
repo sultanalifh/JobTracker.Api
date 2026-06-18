@@ -2,7 +2,10 @@ using System.Linq.Expressions;
 using JobTracker.Api.Data;
 using JobTracker.Api.Exceptions;
 using JobTracker.Api.Models;
+using JobTracker.Api.Utilities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Query.SqlExpressions;
+using Npgsql.EntityFrameworkCore.PostgreSQL.Query.Expressions.Internal;
 
 namespace JobTracker.Api.Repositories;
 
@@ -22,19 +25,11 @@ public class JobApplicationRepositories : IJobApplicationRepositories
     }
     public async Task<List<JobApplication>> GetAllAsync(int page, int pageSize, ApplicationStatus? status, string? keyword)
     {
-        if (keyword != null)
-        {
-            keyword = keyword.ToLower();
-        }
-
         List<JobApplication> applications =
             await _context.JobApplications
             .Where(application =>
-                (keyword == null ||
-                application.Company.ToLower().Contains(keyword) ||
-                application.Position.ToLower().Contains(keyword) ||
-                application.SiteLocation.ToLower().Contains(keyword)) &&
-                (application.Status == status || status == null))
+                application.Contains(keyword) &&
+                application.StatusIsOrDefault(status))
             .OrderBy(application => application.CreatedAt)
             .Skip(pageSize * (page - 1))
             .Take(pageSize)
@@ -58,11 +53,8 @@ public class JobApplicationRepositories : IJobApplicationRepositories
         List<JobApplication> applications = await _context.JobApplications
             .Where(application => 
                 application.UserId == userId &&
-                (keyword == null || 
-                application.Company.ToLower().Contains(keyword) ||
-                application.Position.ToLower().Contains(keyword) || 
-                application.SiteLocation.ToLower().Contains(keyword)) && 
-                (application.Status == status || status == null))
+                application.Contains(keyword) &&
+                application.StatusIsOrDefault(status))
             .OrderBy(application => application.CreatedAt)
             .Skip(pageSize * (page - 1))
             .Take(pageSize)
@@ -82,6 +74,33 @@ public class JobApplicationRepositories : IJobApplicationRepositories
         int total = await _context.JobApplications.CountAsync(predicate);
 
         return total;
+    }
+    public async Task<int> CountAsync(ApplicationStatus? status, string? keyword)
+    {
+        if(keyword != null)
+        {
+            keyword = keyword.ToLower();
+        }
+        Expression<Func<JobApplication, bool>> expression = 
+            application => 
+                application.Contains(keyword) && 
+                application.StatusIsOrDefault(status);
+
+        return await CountAsync(expression);
+    }
+    public async Task<int> CountAsync(long userId, ApplicationStatus? status, string? keyword)
+    {
+        if(keyword != null)
+        {
+            keyword = keyword.ToLower();
+        }
+        Expression<Func<JobApplication, bool>> expression = 
+            application => 
+                application.UserId == userId &&
+                application.Contains(keyword) && 
+                application.StatusIsOrDefault(status);
+
+        return await CountAsync(expression);
     }
     public async Task AddAsync(JobApplication application) => await _context.JobApplications.AddAsync(application);
 

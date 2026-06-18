@@ -11,6 +11,8 @@ public interface IJobApplicationRepositories : IRepositories
     Task<List<JobApplication>> GetAllByUserIdAsync(long userId, int page, int pageSize, ApplicationStatus? status, string? keyword);
     Task<JobApplication?> GetByIdAsync(long id);
     Task<int> CountAsync(Expression<Func<JobApplication, bool>> predicate);
+    Task<int> CountAsync(ApplicationStatus? status, string? keyword);
+    Task<int> CountAsync(long userId, ApplicationStatus? status, string? keyword);
     Task AddAsync(JobApplication application);
     Task RemoveAsync(JobApplication application);
 }
