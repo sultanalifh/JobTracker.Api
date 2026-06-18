@@ -80,6 +80,24 @@ public class JobApplicationService : IJobApplicationService
         return true;
     }
 
+    public async Task<List<JobApplicationResponse>> GetAllApplicationsAsync()
+    {
+        List<JobApplication> applications = await _repositories.GetAllAsync();
+
+        List<JobApplicationResponse> applicationResponses = applications.Select(application => new JobApplicationResponse()
+        {
+            Id = application.Id,
+            Company = application.Company,
+            Position = application.Position,
+            SiteLocation = application.SiteLocation,
+            Status = application.Status.GetDisplayName(),
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        }).ToList();
+
+        return applicationResponses;
+    }
+
     public async Task<JobApplicationResponse?> GetMyApplication(long id)
     {
         JobApplication? application = await _repositories.GetByIdAsync(id);
@@ -146,6 +164,8 @@ public class JobApplicationService : IJobApplicationService
             Status = application.Status.GetDisplayName()
         };
     }
+
+    public async Task<StatisticsResponse> GetStatisticsAsync() => await _statistics.GetStatisticsAsync(-1);
 
     public async Task InvalidateMyApplicationsStatistics() => await _statistics.InvalidateAsync();
 

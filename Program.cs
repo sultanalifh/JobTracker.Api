@@ -1,7 +1,6 @@
 using System.Text;
 using JobTracker.Api.Data;
-using JobTracker.Api.Dtos.Request;
-using JobTracker.Api.Dtos.Response;
+using JobTracker.Api.Endpoints;
 using JobTracker.Api.Middlewares;
 using JobTracker.Api.Repositories;
 using JobTracker.Api.Security;
@@ -49,13 +48,20 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     );
 });
 builder.Services.AddHttpContextAccessor();
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization((options) =>
+{
+    options.AddPolicy("AdminOnly", policy =>
+    {
+        policy.RequireRole("Admin");
+    });
+});
 
 // Repositories
 builder.Services.AddScoped<IJobApplicationRepositories, JobApplicationRepositories>();
 builder.Services.AddScoped<IUserRepositories, UserRepositories>();
 
 // Service
+builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 builder.Services.AddScoped<IStatisticsService, StatisticsService>();
 builder.Services.AddScoped<IJobApplicationService, JobApplicationService>();
@@ -79,57 +85,21 @@ app.UseMiddleware<GlobalExceptionMiddleware>();
 
 // Authentication
 
-app.MapPost("/register", async (IAuthService auth, RegisterRequest request) =>
-{
-    UserResponse response = await auth.Register(request);
+app.MapAuthEndpoints();
 
-    return response;
-});
-
-app.MapPost("/login", async (IAuthService auth, LoginRequest request) =>
-{
-    LoginResponse response = await auth.Login(request);
-
-    return response;
-});
-
-// Feature
+// User
 
 app.UseAuthentication();
 
 app.UseAuthorization();
 
-app.MapGet("/applications", async (IJobApplicationService jobApplicationService) => Results.Ok(await jobApplicationService.GetMyApplications())).RequireAuthorization();
+app.MapJobApplicationEndpoints();
 
-app.MapGet("/applications/{id}", async (IJobApplicationService jobApplicationService, long id) =>
-{
-    JobApplicationResponse? application = await jobApplicationService.GetMyApplication(id);
+// Admin
 
-    return Results.Ok(application);
-}
-);
+app.MapGroup("/admin")
+    .RequireAuthorization("AdminOnly")
+    .MapAdminEndpoints();
 
-app.MapDelete("/applications/{id}", async (IJobApplicationService jobApplicationService, long id) =>
-{
-    await jobApplicationService.DeleteMyApplication(id);
-
-    return Results.NoContent();
-});
-
-app.MapPatch("/applications/{id}/status", async (IJobApplicationService jobApplicationService, UpdateJobApplicationStatusRequest request, long id) =>
-{
-    JobApplicationStatusResponse? response = await jobApplicationService.SetMyAppliacionStatus(id, request);
-
-    return Results.Ok(response);
-});
-
-app.MapPost("/applications", async (IJobApplicationService jobApplicationService, CreateJobApplicationRequest request) =>
-{
-    JobApplicationResponse application = await jobApplicationService.CreateMyApplication(request);
-
-    return Results.Created($"/applications/{application.Id}", application);
-});
-
-app.MapGet("/statistics", async (IJobApplicationService jobApplicationService) => Results.Ok(await jobApplicationService.GetMyApplicationsStatistics()));
 
 app.Run();

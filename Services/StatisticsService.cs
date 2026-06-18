@@ -29,12 +29,12 @@ public class StatisticsService : IStatisticsService
 
         var statistics = new StatisticsResponse()
         {
-            TotalApplications = await _repositories.CountAsync(application => application.UserId == userId),
-            TotalApplied = await _repositories.CountAsync(application => application.UserId == userId && application.Status == ApplicationStatus.Applied),
-            TotalViewed = await _repositories.CountAsync(application => application.UserId == userId && application.Status == ApplicationStatus.Viewed),
-            TotalInterviewed = await _repositories.CountAsync(application => application.UserId == userId && application.Status == ApplicationStatus.Interview),
-            TotalOffered = await _repositories.CountAsync(application => application.UserId == userId && application.Status == ApplicationStatus.Offer),
-            TotalRejected = await _repositories.CountAsync(application => application.UserId == userId && application.Status == ApplicationStatus.Rejected)
+            TotalApplications = await _repositories.CountAsync(application => userId == -1 || application.UserId == userId),
+            TotalApplied = await _repositories.CountAsync(application => (userId == -1 || application.UserId == userId) && application.Status == ApplicationStatus.Applied),
+            TotalViewed = await _repositories.CountAsync(application => (userId == -1 || application.UserId == userId) && application.Status == ApplicationStatus.Viewed),
+            TotalInterviewed = await _repositories.CountAsync(application => (userId == -1 || application.UserId == userId) && application.Status == ApplicationStatus.Interview),
+            TotalOffered = await _repositories.CountAsync(application => (userId == -1 || application.UserId == userId) && application.Status == ApplicationStatus.Offer),
+            TotalRejected = await _repositories.CountAsync(application => (userId == -1 || application.UserId == userId) && application.Status == ApplicationStatus.Rejected)
         };
 
         cached = JsonSerializer.Serialize(statistics);

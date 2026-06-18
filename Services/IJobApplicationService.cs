@@ -15,4 +15,8 @@ public interface IJobApplicationService
     Task<StatisticsResponse> GetMyApplicationsStatistics();
     Task InvalidateMyApplicationsStatistics();
 
+    // Admin
+
+    Task<List<JobApplicationResponse>> GetAllApplicationsAsync();
+    Task<StatisticsResponse> GetStatisticsAsync();
 }
