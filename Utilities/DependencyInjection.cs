@@ -1,6 +1,8 @@
+using JobTracker.Api.Dtos.Request;
 using JobTracker.Api.Repositories;
 using JobTracker.Api.Security;
 using JobTracker.Api.Services;
+using JobTracker.Api.Validators;
 
 namespace JobTracker.Api.Utilities;
 
@@ -73,6 +75,17 @@ public static class DependencyInjection
     {
         services.AddScoped<IUserService, UserService>();
 
+        return services;
+    }
+
+    public static IServiceCollection AddValidators(this IServiceCollection services)
+    {
+        services.AddScoped<IValidator<CreateJobApplicationRequest>, CreateJobApplicationRequestValidator>();
+        services.AddScoped<IValidator<LoginRequest>, LoginRequestValidator>();
+        services.AddScoped<IValidator<RegisterRequest>, RegisterRequestValidator>();
+        services.AddScoped<IValidator<UpdateJobApplicationRequest>, UpdateJobApplicationRequestValidator>();
+        services.AddScoped<IValidator<UpdateJobApplicationStatusRequest>, UpdateJobApplicationStatusRequestValidator>();
+        
         return services;
     }
 }

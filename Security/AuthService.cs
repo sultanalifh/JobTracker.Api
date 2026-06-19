@@ -2,9 +2,11 @@ using System.ComponentModel.DataAnnotations;
 using JobTracker.Api.Dtos.Request;
 using JobTracker.Api.Dtos.Response;
 using JobTracker.Api.Exceptions;
+using JobTracker.Api.Mappers;
 using JobTracker.Api.Models;
 using JobTracker.Api.Repositories;
 using JobTracker.Api.Security.Models;
+using JobTracker.Api.Validators;
 using Microsoft.OpenApi;
 
 namespace JobTracker.Api.Security;
@@ -14,22 +16,25 @@ public class AuthService : IAuthService
     private readonly IUserRepositories _repositories;
     private readonly IPasswordService _passwordService;
     private readonly IJwtService _jwt;
-
-    public AuthService(IUserRepositories repositories, IPasswordService passwordService, IJwtService jwt)
+    private readonly IValidator<LoginRequest> _loginValidator;
+    private readonly IValidator<RegisterRequest> _registerValidator;
+    public AuthService(
+        IUserRepositories repositories,
+        IPasswordService passwordService,
+        IJwtService jwt,
+        IValidator<LoginRequest> loginValidator,
+        IValidator<RegisterRequest> registerValidator)
     {
         _repositories = repositories;
         _passwordService = passwordService;
         _jwt = jwt;
+
+        _loginValidator = loginValidator;
+        _registerValidator = registerValidator;
     }   
     public async Task<UserResponse> Register(RegisterRequest request)
     {
-        string username = request.Username;
-        string password = request.Password;
-
-        if(string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
-        {
-            throw new ValidationException("All field must be filled!");
-        }
+        _registerValidator.Validate(request);
 
         bool usernameExists = await _repositories.ExistsByUsername(request.Username);
 
@@ -38,45 +43,28 @@ public class AuthService : IAuthService
             throw new UsernameAlreadyExistsException();
         }
 
-        User user = new User()
-        {
-            Username = username,
-            Role = UserRole.User,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
-        };
+        User user = request.CreateUser();
 
-        user.PasswordHash = _passwordService.HashPassword(user, password);
+        user.PasswordHash = _passwordService.HashPassword(user, request.Password);
 
         await _repositories.AddAsync(user);
 
         await _repositories.SavesChangesAsync();
 
-        return new UserResponse()
-        {
-            Id = user.Id,
-            Username = user.Username,
-            Role = user.Role.GetDisplayName()
-        };
+        return user.ToResponse();
     }
     public async Task<LoginResponse> Login(LoginRequest request)
     {
-        string username = request.Username;
-        string password = request.Password;
+        _loginValidator.Validate(request);
 
-        if(string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
-        {
-            throw new ValidationException("All field must be filled!");
-        }
-
-        User? intendedUser = await _repositories.GetByUsernameAsync(username);
+        User? intendedUser = await _repositories.GetByUsernameAsync(request.Username);
 
         if (intendedUser == null)
         {
             throw new InvalidCredentialsException();
         }
 
-        bool passwordMatch = _passwordService.VerifyPassword(intendedUser!, intendedUser!.PasswordHash, password);
+        bool passwordMatch = _passwordService.VerifyPassword(intendedUser, intendedUser.PasswordHash, request.Password);
 
         if (!passwordMatch)
         {
@@ -85,17 +73,7 @@ public class AuthService : IAuthService
 
         JwtTokenResult tokenResult = _jwt.GenerateToken(intendedUser!);
 
-        return new LoginResponse()
-        {
-            Token = tokenResult.Token,
-            ExpiresAt = tokenResult.ExpiresAt,
-            User = new UserResponse()
-            {
-                Id = intendedUser.Id,
-                Username = intendedUser.Username,
-                Role = intendedUser.Role.GetDisplayName()
-            }
-        };
+        return intendedUser.ToResponse().ToLoginResponse(tokenResult.Token, tokenResult.ExpiresAt);
     }
     public Task<bool> Logout()
     {

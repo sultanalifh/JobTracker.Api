@@ -2,16 +2,24 @@ using System.ComponentModel.DataAnnotations;
 using JobTracker.Api.Dtos.Request;
 using JobTracker.Api.Dtos.Response;
 using JobTracker.Api.Exceptions;
+using JobTracker.Api.Mappers;
 using JobTracker.Api.Models;
 using JobTracker.Api.Repositories;
+using JobTracker.Api.Validators;
 using Microsoft.OpenApi;
 
 namespace JobTracker.Api.Services;
 
 public class AdminJobApplicationService : UserJobApplicationService, IAdminJobApplicationService
 {
-    public AdminJobApplicationService(IJobApplicationRepositories repositories, IStatisticsService statistics, ICurrentUserService user) 
-        : base(repositories, statistics, user)
+    public AdminJobApplicationService(
+        IJobApplicationRepositories repositories, 
+        IStatisticsService statistics, 
+        ICurrentUserService user,
+        IValidator<CreateJobApplicationRequest> createApplicationValidator,
+        IValidator<UpdateJobApplicationRequest> updateApplicationValidator,
+        IValidator<UpdateJobApplicationStatusRequest> updateApplicationStatusValidator) 
+        : base(repositories, statistics, user, createApplicationValidator, updateApplicationValidator, updateApplicationStatusValidator)
     {
         
     }
@@ -38,16 +46,7 @@ public class AdminJobApplicationService : UserJobApplicationService, IAdminJobAp
         List<JobApplication> applications = await _repositories.GetAllAsync(page, pageSize, status, keyword);
 
         List<JobApplicationResponse> applicationsResponse = applications.Select(
-            application => new JobApplicationResponse()
-            {
-                Id = application.Id,
-                Company = application.Company,
-                Position = application.Position,
-                SiteLocation = application.SiteLocation,
-                Status = application.Status.GetDisplayName(),
-                CreatedAt = application.CreatedAt,
-                UpdatedAt = application.UpdatedAt
-            }).ToList();
+            application => application.ToResponse()).ToList();
 
         int totalPage = (int)Math.Ceiling(totalApplications / (pageSize + 0.0));
         int totalItems = totalApplications;
@@ -85,16 +84,7 @@ public class AdminJobApplicationService : UserJobApplicationService, IAdminJobAp
         List<JobApplication> applications = await _repositories.GetAllByUserIdAsync(id, page, pageSize, status, keyword);
 
         List<JobApplicationResponse> applicationsResponse = applications.Select(
-            application => new JobApplicationResponse()
-            {
-                Id = application.Id,
-                Company = application.Company,
-                Position = application.Position,
-                SiteLocation = application.SiteLocation,
-                Status = application.Status.GetDisplayName(),
-                CreatedAt = application.CreatedAt,
-                UpdatedAt = application.UpdatedAt
-            }).ToList();
+            application => application.ToResponse()).ToList();
 
         int totalPage = (int)Math.Ceiling(totalApplications / (pageSize + 0.0));
         int totalItems = totalApplications;
@@ -114,16 +104,7 @@ public class AdminJobApplicationService : UserJobApplicationService, IAdminJobAp
         List<JobApplication> applications = await _repositories.GetAllAsync();
 
         List<JobApplicationResponse> applicationsResponse = applications.Select(
-            application => new JobApplicationResponse()
-            {
-                Id = application.Id,
-                Company = application.Company,
-                Position = application.Position,
-                SiteLocation = application.SiteLocation,
-                Status = application.Status.GetDisplayName(),
-                CreatedAt = application.CreatedAt,
-                UpdatedAt = application.UpdatedAt
-            }).ToList();
+            application => application.ToResponse()).ToList();
 
         return applicationsResponse;
     }
@@ -133,16 +114,7 @@ public class AdminJobApplicationService : UserJobApplicationService, IAdminJobAp
         List<JobApplication> applications = await _repositories.GetAllByUserIdAsync(id);
 
         List<JobApplicationResponse> applicationsResponse = applications.Select(
-            application => new JobApplicationResponse()
-            {
-                Id = application.Id,
-                Company = application.Company,
-                Position = application.Position,
-                SiteLocation = application.SiteLocation,
-                Status = application.Status.GetDisplayName(),
-                CreatedAt = application.CreatedAt,
-                UpdatedAt = application.UpdatedAt
-            }).ToList();
+            application => application.ToResponse()).ToList();
 
         return applicationsResponse;
     }

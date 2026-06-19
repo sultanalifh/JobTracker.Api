@@ -2,8 +2,10 @@ using System.ComponentModel.DataAnnotations;
 using JobTracker.Api.Dtos.Request;
 using JobTracker.Api.Dtos.Response;
 using JobTracker.Api.Exceptions;
+using JobTracker.Api.Mappers;
 using JobTracker.Api.Models;
 using JobTracker.Api.Repositories;
+using JobTracker.Api.Validators;
 using Microsoft.OpenApi;
 
 namespace JobTracker.Api.Services;
@@ -14,11 +16,28 @@ public class UserJobApplicationService : IUserJobApplicationService
     protected readonly IStatisticsService _statistics;
     protected readonly ICurrentUserService _user;
 
-    public UserJobApplicationService(IJobApplicationRepositories repositories, IStatisticsService statistics, ICurrentUserService user)
+
+    // Validators
+
+    protected readonly IValidator<CreateJobApplicationRequest> _createApplicationValidator;
+    protected readonly IValidator<UpdateJobApplicationRequest> _updateApplicationValidator;
+    protected readonly IValidator<UpdateJobApplicationStatusRequest> _updateApplicationStatusValidator;
+
+    public UserJobApplicationService(
+        IJobApplicationRepositories repositories, 
+        IStatisticsService statistics, 
+        ICurrentUserService user,
+        IValidator<CreateJobApplicationRequest> createApplicationValidator,
+        IValidator<UpdateJobApplicationRequest> updateApplicationValidator,
+        IValidator<UpdateJobApplicationStatusRequest> updateApplicationStatusValidator)
     {
         _repositories = repositories;
         _statistics = statistics;
         _user = user;
+
+        _createApplicationValidator = createApplicationValidator;
+        _updateApplicationValidator = updateApplicationValidator;
+        _updateApplicationStatusValidator = updateApplicationStatusValidator;
     }
     public async Task<JobApplicationPaginationResponse> GetMyApplicationsPage(GetApplicationRequest request)
     {
@@ -43,16 +62,7 @@ public class UserJobApplicationService : IUserJobApplicationService
         List<JobApplication> applications = await _repositories.GetAllByUserIdAsync(_user.UserId, page, pageSize, status, keyword);
 
         List<JobApplicationResponse> applicationsResponse = applications.Select(
-            application => new JobApplicationResponse()
-            {
-                Id = application.Id,
-                Company = application.Company,
-                Position = application.Position,
-                SiteLocation = application.SiteLocation,
-                Status = application.Status.GetDisplayName(),
-                CreatedAt = application.CreatedAt,
-                UpdatedAt = application.UpdatedAt
-            }).ToList();
+            application => application.ToResponse()).ToList();
 
         int totalPage = (int)Math.Ceiling(totalApplications / (pageSize + 0.0));
         int totalItems = totalApplications;
@@ -72,16 +82,7 @@ public class UserJobApplicationService : IUserJobApplicationService
         List<JobApplication> applications = await _repositories.GetAllByUserIdAsync(_user.UserId);
 
         List<JobApplicationResponse> applicationsResponse = applications.Select(
-            application => new JobApplicationResponse()
-            {
-                Id = application.Id,
-                Company = application.Company,
-                Position = application.Position,
-                SiteLocation = application.SiteLocation,
-                Status = application.Status.GetDisplayName(),
-                CreatedAt = application.CreatedAt,
-                UpdatedAt = application.UpdatedAt
-            }).ToList();
+            application => application.ToResponse()).ToList();
 
         return applicationsResponse;
     }
@@ -100,42 +101,14 @@ public class UserJobApplicationService : IUserJobApplicationService
             throw new UnauthorizedAccessException("Unauthorized Access!");
         }
 
-        return new JobApplicationResponse()
-        {
-            Id = application.Id,
-            Company = application.Company,
-            Position = application.Position,
-            SiteLocation = application.SiteLocation,
-            Status = application.Status.GetDisplayName(),
-            CreatedAt = application.CreatedAt,
-            UpdatedAt = application.UpdatedAt
-        };
+        return application.ToResponse();
     }
 
     public async Task<JobApplicationResponse> CreateMyApplication(CreateJobApplicationRequest request)
     {
-        string company = request.Company;
-        string position = request.Position;
-        string siteLocation = request.SiteLocation;
+        _createApplicationValidator.Validate(request);
 
-        if (
-            string.IsNullOrWhiteSpace(company) ||
-            string.IsNullOrWhiteSpace(position) ||
-            string.IsNullOrWhiteSpace(siteLocation))
-        {
-            throw new ValidationException("All field must be filled!");
-        }
-
-        JobApplication application = new JobApplication()
-        {
-            Company = company,
-            Position = position,
-            SiteLocation = siteLocation,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow,
-
-            UserId = _user.UserId
-        };
+        JobApplication application = request.CreateApplication(_user.UserId);
 
         await _repositories.AddAsync(application);
 
@@ -143,39 +116,16 @@ public class UserJobApplicationService : IUserJobApplicationService
 
         await InvalidateMyApplicationsStatistics();
 
-        return new JobApplicationResponse()
-        {
-            Id = application.Id,
-            Company = application.Company,
-            Position = application.Position,
-            SiteLocation = application.SiteLocation,
-            Status = application.Status.GetDisplayName(),
-            CreatedAt = application.CreatedAt,
-            UpdatedAt = application.UpdatedAt
-        };
+        return application.ToResponse();
     }
 
     public async Task<JobApplicationResponse> UpdateMyApplication(long id, UpdateJobApplicationRequest request)
     {
-        string company = request.Company;
-        string position = request.Position;
-        string siteLocation = request.SiteLocation;
-        ApplicationStatus status;
-
-        if (
-            string.IsNullOrWhiteSpace(company) ||
-            string.IsNullOrWhiteSpace(position) ||
-            string.IsNullOrWhiteSpace(siteLocation))
-        {
-            throw new ValidationException("All field must be filled!");
-        }
-
-        if (!Enum.TryParse<ApplicationStatus>(request.Status, out status))
-        {
-            throw new ValidationException("Invalid status!");
-        }
+        _updateApplicationValidator.Validate(request);
 
         JobApplication? application = await _repositories.GetByIdAsync(id);
+
+        ApplicationStatus status = Enum.Parse<ApplicationStatus>(request.Status);
 
         if (application == null)
         {
@@ -187,9 +137,9 @@ public class UserJobApplicationService : IUserJobApplicationService
             throw new UnauthorizedAccessException("Unauthorized Access!");
         }
 
-        application.Company = company;
-        application.Position = position;
-        application.SiteLocation = siteLocation;
+        application.Company = request.Company;
+        application.Position = request.Position;
+        application.SiteLocation = request.SiteLocation;
         application.Status = status;
         application.UpdatedAt = DateTime.UtcNow;
 
@@ -197,24 +147,12 @@ public class UserJobApplicationService : IUserJobApplicationService
         
         await InvalidateMyApplicationsStatistics();
 
-        return new JobApplicationResponse()
-        {
-            Id = application.Id,
-            Company = application.Company,
-            Position = application.Position,
-            SiteLocation = application.SiteLocation,
-            Status = application.Status.GetDisplayName(),
-            CreatedAt = application.CreatedAt,
-            UpdatedAt = application.UpdatedAt
-        };
+        return application.ToResponse();
     }
 
     public async Task<JobApplicationStatusResponse> UpdateMyApplicationStatus(long id, UpdateJobApplicationStatusRequest request)
     {
-        if(!Enum.TryParse<ApplicationStatus>(request.Status, out ApplicationStatus r))
-        {
-            throw new ValidationException("Invalid status!");
-        }
+        _updateApplicationStatusValidator.Validate(request);
 
         JobApplication? application = await _repositories.GetByIdAsync(id);
 
@@ -235,11 +173,7 @@ public class UserJobApplicationService : IUserJobApplicationService
 
         await InvalidateMyApplicationsStatistics();
 
-        return new JobApplicationStatusResponse()
-        {
-            Id = id,
-            Status = application.Status.GetDisplayName()
-        };
+        return request.ToResponse(id);
     }
 
     public async Task<bool> DeleteMyApplication(long id)

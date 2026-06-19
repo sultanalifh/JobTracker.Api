@@ -71,6 +71,8 @@ builder.Services.AddAuthService();
 builder.Services.AddUserJobApplicationService();
 builder.Services.AddAdminJobApplicationService();
 
+builder.Services.AddValidators();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
